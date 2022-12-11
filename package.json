@@ -18,7 +18,7 @@
   "homepage": "https://github.com/oneai-nlp/oneai-coda#readme",
   "dependencies": {
     "@codahq/packs-sdk": "^1.2.2",
-    "oneai": "^0.6.3"
+    "oneai": "^0.6.5"
   },
   "devDependencies": {
     "@types/chai": "^4.3.4",

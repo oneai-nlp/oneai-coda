@@ -29,7 +29,7 @@ class CodaFetcherAPIClient implements ApiClient {
         cacheTtlSecs: 0,
       });
 
-      return response.body;
+      return { ...response, data: response.body };
     } catch (e) {
       throw buildError(e);
     }
@@ -49,7 +49,7 @@ class CodaFetcherAPIClient implements ApiClient {
         cacheTtlSecs: 0,
       });
 
-      return response.body;
+      return { ...response, data: response.body };
     } catch (e) {
       throw buildError(e);
     }
