@@ -35,7 +35,37 @@ pack.addFormula({
       oneai.skills.topics(),
     );
     const { topics } = await pipeline.run(inputText);
-    return `Tags: ${topics?.map((t) => `#${(t.value as string).replace(' ', '_')}`).join(', ')}`;
+    return `Tags: ${topics?.map((t) => `#${(t.value as string).replace(' ', '_')}`).join(' ')}`;
+  },
+});
+
+pack.addFormula({
+  name: 'YouTubeSummary',
+  description: 'Summarize content of YouTube video.',
+
+  parameters: [
+    coda.makeParameter({
+      type: coda.ParameterType.String,
+      name: 'videoURL',
+      description: 'Full URL of a YouTube Video i.e "https://www.youtube.com/watch?v=D-LymTjyuP4"',
+    }),
+  ],
+
+  resultType: coda.ValueType.String,
+  codaType: coda.ValueHintType.Markdown,
+
+  async execute([inputText], context) {
+    const oneai = oneAICodaClient(context);
+    const pipeline = new oneai.Pipeline(
+      oneai.skills.htmlToArticle(),
+      oneai.skills.summarize(),
+    );
+    const output = (await pipeline.run(inputText)).htmlArticle!;
+
+    const title = output.htmlFields?.filter((f) => f.name === 'title')[0].value;
+    const summary = output?.summary?.text || '';
+
+    return (title) ? `# ${title}\n\n${summary}` : (summary as string);
   },
 });
 
