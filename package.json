@@ -2,7 +2,6 @@
   "name": "oneai-coda",
   "version": "1.0.0",
   "description": "One AI pack for Coda",
-  "main": "index.js",
   "scripts": {
     "test": "test",
     "postinstall": "npx patch-package"
@@ -19,7 +18,7 @@
   "homepage": "https://github.com/oneai-nlp/oneai-coda#readme",
   "dependencies": {
     "@codahq/packs-sdk": "^1.2.2",
-    "oneai": "^0.5.2"
+    "oneai": "^0.6.3"
   },
   "devDependencies": {
     "@types/chai": "^4.3.4",
@@ -33,8 +32,10 @@
     "chai": "^4.3.7",
     "chai-as-promised": "^7.1.1",
     "eslint": "^8.29.0",
+    "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-ban": "^1.6.0",
     "eslint-plugin-filenames": "^1.3.2",
+    "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-local": "^1.0.0",
     "eslint-plugin-prefer-let": "^3.0.1",
     "json-schema": "^0.4.0",
