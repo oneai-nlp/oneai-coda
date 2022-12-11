@@ -1,0 +1,46 @@
+{
+  "name": "oneai-coda",
+  "version": "1.0.0",
+  "description": "One AI pack for Coda",
+  "main": "index.js",
+  "scripts": {
+    "test": "test",
+    "postinstall": "npx patch-package"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oneai-nlp/oneai-coda.git"
+  },
+  "author": "michael gur",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/oneai-nlp/oneai-coda/issues"
+  },
+  "homepage": "https://github.com/oneai-nlp/oneai-coda#readme",
+  "dependencies": {
+    "@codahq/packs-sdk": "^1.2.2",
+    "oneai": "^0.5.2"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.4",
+    "@types/chai-as-promised": "^7.1.5",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^18.11.13",
+    "@types/sinon": "^10.0.13",
+    "@typescript-eslint/eslint-plugin": "^5.38.1",
+    "@typescript-eslint/experimental-utils": "^5.38.1",
+    "@typescript-eslint/parser": "^5.38.1",
+    "chai": "^4.3.7",
+    "chai-as-promised": "^7.1.1",
+    "eslint": "^8.29.0",
+    "eslint-plugin-ban": "^1.6.0",
+    "eslint-plugin-filenames": "^1.3.2",
+    "eslint-plugin-local": "^1.0.0",
+    "eslint-plugin-prefer-let": "^3.0.1",
+    "json-schema": "^0.4.0",
+    "mocha": "^10.1.0",
+    "sinon": "^14.0.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.4"
+  }
+}
