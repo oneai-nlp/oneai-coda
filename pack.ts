@@ -173,11 +173,18 @@ pack.addFormula({
       amount: amount || 'normal',
     };
     const output = await executePipeline([doc, text, url], context, OneAI.skills.splitByTopic());
+    const captions = (typeof output?.text === 'string') ? [{
+      utterance: output?.text,
+      timestamp: undefined,
+    }] : output?.text as OneAI.Conversation;
     const chapters = output?.segments?.map((c) => ({
       title: c.data.subheading,
-      text: textFromCaptions(output?.text as OneAI.Conversation, c),
-      start: c.timestamp,
-      end: c.timestampEnd,
+      text: c.outputSpans.map((span) => {
+        const { section, start, end } = span;
+        return captions[section]?.utterance?.slice(start, end) || '';
+      }).join('\n'),
+      start: captions?.[c.outputSpans[0].section]?.timestamp || 0,
+      end: captions?.[c.outputSpans[c.outputSpans.length - 1].section]?.timestamp || 0,
     }));
     return chapters || [];
   },
