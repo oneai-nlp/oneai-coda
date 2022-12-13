@@ -77,22 +77,18 @@ pack.addFormula({
   name: 'Summarize',
   description: 'Summarize a text.',
 
-  parameters: [
-    coda.makeParameter({
-      type: coda.ParameterType.String,
-      name: 'text',
-      description: 'The text to summarize.',
-    }),
-  ],
+  parameters: htmlInput,
 
   resultType: coda.ValueType.String,
 
-  async execute([inputText], context) {
+  async execute([text, url], context) {
+    const inputText = getInputText([text, url]);
     const oneai = new OneAICoda(context);
     const pipeline = new oneai.Pipeline(
+      oneai.skills.htmlToArticle(),
       oneai.skills.summarize(),
     );
-    return (await pipeline.run(inputText))?.summary?.text as string || '';
+    return (await pipeline.run(inputText))?.htmlArticle?.summary?.text as string || '';
   },
 });
 
@@ -149,6 +145,7 @@ pack.addFormula({
     properties: {
       title: { type: coda.ValueType.String },
       text: { type: coda.ValueType.String },
+      start: { type: coda.ValueType.String },
     },
   }),
 
