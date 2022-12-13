@@ -81,12 +81,31 @@ pack.addFormula({
   description: 'Summarize a text.',
   // short med long
 
-  parameters,
+  parameters: [
+    ...parameters,
+    coda.makeParameter({
+      type: coda.ParameterType.String,
+      name: 'length',
+      description: 'Summary length.',
+      optional: true,
+      suggestedValue: 'normal',
+      autocomplete: ['normal', 'long', 'short'],
+    }),
+  ],
 
   resultType: coda.ValueType.String,
 
   async execute(params, context) {
-    const { summary } = await executePipeline(params, context, OneAI.skills.summarize());
+    const lengths: Record<any, [number, number]> = {
+      normal: [50, 100],
+      short: [20, 40],
+      long: [100, 200],
+    };
+    const [doc, text, url, length] = params;
+    const { summary } = await executePipeline([doc, text, url], context, OneAI.skills.summarize({
+      min_length: lengths[length][0],
+      max_length: lengths[length][1],
+    }));
     return (summary?.text || '') as string;
   },
 });
@@ -124,7 +143,17 @@ pack.addFormula({
   name: 'Chapters',
   description: 'Automatically split a text into chapters based on content.',
 
-  parameters, // + 'more'
+  parameters: [
+    ...parameters,
+    coda.makeParameter({
+      type: coda.ParameterType.String,
+      name: 'amount',
+      description: 'Amount of chapters to create.',
+      optional: true,
+      suggestedValue: 'normal',
+      autocomplete: ['normal', 'less', 'more'],
+    }),
+  ],
 
   resultType: coda.ValueType.Array,
   items: coda.makeObjectSchema({
@@ -132,16 +161,23 @@ pack.addFormula({
     properties: {
       title: { type: coda.ValueType.String },
       text: { type: coda.ValueType.String },
-      start: { type: coda.ValueType.String },
-      end: { type: coda.ValueType.String },
+      start: { type: coda.ValueType.Number },
+      end: { type: coda.ValueType.Number },
     },
   }),
 
   async execute(params, context) {
-    const output = await executePipeline(params, context, OneAI.skills.splitByTopic());
+    const [doc, text, url, amount] = params;
+    const splitByTopic = OneAI.skills.splitByTopic();
+    splitByTopic.params = {
+      amount: amount || 'normal',
+    };
+    const output = await executePipeline([doc, text, url], context, OneAI.skills.splitByTopic());
     const chapters = output?.segments?.map((c) => ({
       title: c.data.subheading,
       text: textFromCaptions(output?.text as OneAI.Conversation, c),
+      start: c.timestamp,
+      end: c.timestampEnd,
     }));
     return chapters || [];
   },
@@ -168,6 +204,21 @@ pack.addFormula({
       name: name.spanText,
       type: name.name,
     })) || [];
+  },
+});
+
+pack.addFormula({
+  name: 'Emotions',
+  description: 'Detect emotions i.e. happiness, sadness, anger etc. in the text.',
+
+  parameters,
+
+  resultType: coda.ValueType.Array,
+  items: { type: coda.ValueType.String },
+
+  async execute(params, context) {
+    const { emotions } = await executePipeline(params, context, OneAI.skills.emotions());
+    return emotions?.map((emotion) => emotion.name) || [];
   },
 });
 
