@@ -1,5 +1,5 @@
 import * as coda from '@codahq/packs-sdk';
-import { Label } from 'oneai';
+import * as OneAI from 'oneai';
 import OneAICoda from './oneai-client';
 
 // eslint-disable-next-line import/prefer-default-export
@@ -15,13 +15,7 @@ pack.setUserAuthentication({
   ],
 });
 
-type Captions = {
-  speaker: string,
-  utterance: string,
-  timestamp: number,
-}[]
-
-function textFromCaptions(input: string | Captions, label: Label) {
+function textFromCaptions(input: OneAI.Conversation | string, label: OneAI.Label) {
   const captions = (typeof input === 'string') ? [{ utterance: input }] : input;
   return label.outputSpans.map((span) => {
     const { section, start, end } = span;
@@ -29,11 +23,17 @@ function textFromCaptions(input: string | Captions, label: Label) {
   }).join('\n');
 }
 
-const htmlInput: coda.ParamDefs = [
+const parameters: coda.ParamDefs = [
   coda.makeParameter({
     type: coda.ParameterType.Html,
+    name: 'doc',
+    description: 'Document to analyze.',
+    optional: true,
+  }),
+  coda.makeParameter({
+    type: coda.ParameterType.String,
     name: 'text',
-    description: 'The text to analyze.',
+    description: 'Text to analyze.',
     optional: true,
   }),
   coda.makeParameter({
@@ -44,31 +44,34 @@ const htmlInput: coda.ParamDefs = [
   }),
 ];
 
-function getInputText([text, url]: [any?, any?]) {
-  const input = text || url;
-  if (input) {
-    return input;
+async function executePipeline(
+  [doc, text, url]: any,
+  context: coda.ExecutionContext,
+  ...skills: OneAI.Skill[]
+): Promise<OneAI.Output> {
+  const htmlInput = doc || url;
+  if (!(htmlInput || text)) {
+    throw new Error('Must provide either text or url.');
   }
-  throw new Error('Must provide either text or url.');
+  const oneai = new OneAICoda(context);
+  const pipeline = (htmlInput)
+    ? new oneai.Pipeline(oneai.skills.htmlToArticle(), ...skills)
+    : new oneai.Pipeline(...skills);
+  const output = await pipeline.run(htmlInput || text);
+  return (htmlInput) ? output.htmlArticle! : output;
 }
 
 pack.addFormula({
   name: 'Topics',
   description: 'Automatically tag text with topics.',
 
-  parameters: htmlInput,
+  parameters,
 
   resultType: coda.ValueType.Array,
   items: { type: coda.ValueType.String },
 
-  async execute([text, url], context) {
-    const inputText = getInputText([text, url]);
-    const oneai = new OneAICoda(context);
-    const pipeline = new oneai.Pipeline(
-      oneai.skills.htmlToArticle(),
-      oneai.skills.topics(),
-    );
-    const topics = (await pipeline.run(inputText))?.htmlArticle?.topics;
+  async execute(params, context) {
+    const { topics } = await executePipeline(params, context, OneAI.skills.topics());
     return topics?.map((t) => `#${(t.value as string).replace(' ', '_')}`) || [];
   },
 });
@@ -76,19 +79,15 @@ pack.addFormula({
 pack.addFormula({
   name: 'Summarize',
   description: 'Summarize a text.',
+  // short med long
 
-  parameters: htmlInput,
+  parameters,
 
   resultType: coda.ValueType.String,
 
-  async execute([text, url], context) {
-    const inputText = getInputText([text, url]);
-    const oneai = new OneAICoda(context);
-    const pipeline = new oneai.Pipeline(
-      oneai.skills.htmlToArticle(),
-      oneai.skills.summarize(),
-    );
-    return (await pipeline.run(inputText))?.htmlArticle?.summary?.text as string || '';
+  async execute(params, context) {
+    const { summary } = await executePipeline(params, context, OneAI.skills.summarize());
+    return (summary?.text || '') as string;
   },
 });
 
@@ -96,19 +95,13 @@ pack.addFormula({
   name: 'Highlights',
   description: 'Detect key sentecnes in a text.',
 
-  parameters: htmlInput,
+  parameters,
 
   resultType: coda.ValueType.Array,
   items: { type: coda.ValueType.String },
 
-  async execute([text, url], context) {
-    const inputText = getInputText([text, url]);
-    const oneai = new OneAICoda(context);
-    const pipeline = new oneai.Pipeline(
-      oneai.skills.htmlToArticle(),
-      oneai.skills.highlights(),
-    );
-    const highlights = (await pipeline.run(inputText))?.htmlArticle?.highlights;
+  async execute(params, context) {
+    const { highlights } = await executePipeline(params, context, OneAI.skills.highlights());
     return highlights?.sort((t) => t.outputSpans[0].section)?.map((t) => t.value as string) || [];
   },
 });
@@ -117,19 +110,13 @@ pack.addFormula({
   name: 'Headline',
   description: 'Automatically generate a headline for a text.',
 
-  parameters: htmlInput,
+  parameters,
 
   resultType: coda.ValueType.String,
 
-  async execute([text, url], context) {
-    const inputText = getInputText([text, url]);
-    const oneai = new OneAICoda(context);
-    const pipeline = new oneai.Pipeline(
-      oneai.skills.htmlToArticle(),
-      oneai.skills.headline(),
-    );
-    const headline = (await pipeline.run(inputText))?.htmlArticle?.headline?.[0];
-    return headline?.value as string || '';
+  async execute(params, context) {
+    const { headline } = await executePipeline(params, context, OneAI.skills.headline());
+    return (headline?.[0]?.value || '') as string;
   },
 });
 
@@ -137,7 +124,7 @@ pack.addFormula({
   name: 'Chapters',
   description: 'Automatically split a text into chapters based on content.',
 
-  parameters: htmlInput,
+  parameters, // + 'more'
 
   resultType: coda.ValueType.Array,
   items: coda.makeObjectSchema({
@@ -146,20 +133,15 @@ pack.addFormula({
       title: { type: coda.ValueType.String },
       text: { type: coda.ValueType.String },
       start: { type: coda.ValueType.String },
+      end: { type: coda.ValueType.String },
     },
   }),
 
-  async execute([text, url], context) {
-    const inputText = getInputText([text, url]);
-    const oneai = new OneAICoda(context);
-    const pipeline = new oneai.Pipeline(
-      oneai.skills.htmlToArticle(),
-      oneai.skills.splitByTopic(),
-    );
-    const output = (await pipeline.run(inputText))?.htmlArticle;
+  async execute(params, context) {
+    const output = await executePipeline(params, context, OneAI.skills.splitByTopic());
     const chapters = output?.segments?.map((c) => ({
       title: c.data.subheading,
-      text: textFromCaptions(output?.text as Captions, c),
+      text: textFromCaptions(output?.text as OneAI.Conversation, c),
     }));
     return chapters || [];
   },
@@ -169,7 +151,7 @@ pack.addFormula({
   name: 'Names',
   description: 'Detect names of people, products, locations etc. in the text.',
 
-  parameters: htmlInput,
+  parameters,
 
   resultType: coda.ValueType.Array,
   items: coda.makeObjectSchema({
@@ -180,18 +162,13 @@ pack.addFormula({
     },
   }),
 
-  async execute([text, url], context) {
-    const inputText = getInputText([text, url]);
-    const oneai = new OneAICoda(context);
-    const pipeline = new oneai.Pipeline(
-      oneai.skills.htmlToArticle(),
-      oneai.skills.names(),
-    );
-    const output = (await pipeline.run(inputText))?.htmlArticle;
-    const names = output?.names?.map((name) => ({
+  async execute(params, context) {
+    const { names } = await executePipeline(params, context, OneAI.skills.names());
+    return names?.map((name) => ({
       name: name.spanText,
       type: name.name,
-    }));
-    return names || [];
+    })) || [];
   },
 });
+
+// nimbleway participants
