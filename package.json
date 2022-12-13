@@ -4,7 +4,8 @@
   "description": "One AI pack for Coda",
   "scripts": {
     "test": "test",
-    "postinstall": "npx patch-package"
+    "postinstall": "npx patch-package",
+    "upload": "npx coda upload pack.ts --notes"
   },
   "repository": {
     "type": "git",
@@ -18,7 +19,7 @@
   "homepage": "https://github.com/oneai-nlp/oneai-coda#readme",
   "dependencies": {
     "@codahq/packs-sdk": "^1.2.2",
-    "oneai": "^0.6.5"
+    "oneai": "^0.6.6"
   },
   "devDependencies": {
     "@types/chai": "^4.3.4",
