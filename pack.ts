@@ -257,3 +257,33 @@ pack.addFormula({
     })) || [];
   },
 });
+
+pack.addFormula({
+  name: 'DatesAndTimes',
+  description: 'Detect and parse dates and times in the text.',
+
+  parameters: [
+    ...parameters,
+    coda.makeParameter({
+      type: coda.ParameterType.Date,
+      name: 'base',
+      description: 'Base date to use for relative dates (e.g. "tomorrow").',
+      optional: true,
+    }),
+  ],
+
+  resultType: coda.ValueType.Array,
+  items: { type: coda.ValueType.Number, codaType: coda.ValueHintType.DateTime },
+
+  async execute(params, context) {
+    const [doc, text, url, base] = params;
+    const { numbers } = await executePipeline(
+      [doc, text, url],
+      context,
+      OneAI.skills.numbers(base ? { reference_time: base.toISOString() } : {}),
+    );
+    return numbers
+      ?.filter((number) => number.name in ['DATE', 'TIME'])
+      ?.map((datetime) => new Date(datetime.data.date_time).getTime() / 1000) || [];
+  },
+});
