@@ -15,14 +15,6 @@ pack.setUserAuthentication({
   ],
 });
 
-function textFromCaptions(input: OneAI.Conversation | string, label: OneAI.Label) {
-  const captions = (typeof input === 'string') ? [{ utterance: input }] : input;
-  return label.outputSpans.map((span) => {
-    const { section, start, end } = span;
-    return captions[section]?.utterance?.slice(start, end) || '';
-  }).join('\n');
-}
-
 const parameters: coda.ParamDefs = [
   coda.makeParameter({
     type: coda.ParameterType.Html,
@@ -50,14 +42,18 @@ async function executePipeline(
   ...skills: OneAI.Skill[]
 ): Promise<OneAI.Output> {
   const htmlInput = doc || url;
+  let conversation;
   if (!(htmlInput || text)) {
     throw new Error('Must provide either text or url.');
   }
   const oneai = new OneAICoda(context);
+  try {
+    conversation = oneai.parsing.parseConversation(text);
+  } catch (e) { /** */ }
   const pipeline = (htmlInput)
     ? new oneai.Pipeline(oneai.skills.htmlToArticle(), ...skills)
     : new oneai.Pipeline(...skills);
-  const output = await pipeline.run(htmlInput || text);
+  const output = await pipeline.run(htmlInput || conversation || text);
   return (htmlInput) ? output.htmlArticle! : output;
 }
 
@@ -72,7 +68,7 @@ pack.addFormula({
 
   async execute(params, context) {
     const { topics } = await executePipeline(params, context, OneAI.skills.topics());
-    return topics?.map((t) => `#${(t.value as string).replace(' ', '_')}`) || [];
+    return topics?.map((t) => `#${(t.value as string).replace(/\s+/g, '_')}`) || [];
   },
 });
 
@@ -103,8 +99,8 @@ pack.addFormula({
     };
     const [doc, text, url, length] = params;
     const { summary } = await executePipeline([doc, text, url], context, OneAI.skills.summarize({
-      min_length: lengths[length][0],
-      max_length: lengths[length][1],
+      min_length: lengths[length || 'normal'][0],
+      max_length: lengths[length || 'normal'][1],
     }));
     return (summary?.text || '') as string;
   },
@@ -112,7 +108,7 @@ pack.addFormula({
 
 pack.addFormula({
   name: 'Highlights',
-  description: 'Detect key sentecnes in a text.',
+  description: 'Detect key sentences in a text.',
 
   parameters,
 
@@ -221,12 +217,43 @@ pack.addFormula({
   parameters,
 
   resultType: coda.ValueType.Array,
-  items: { type: coda.ValueType.String },
+  items: coda.makeObjectSchema({
+    name: 'Emotion',
+    properties: {
+      text: { type: coda.ValueType.String },
+      emotion: { type: coda.ValueType.String },
+    },
+  }),
 
   async execute(params, context) {
     const { emotions } = await executePipeline(params, context, OneAI.skills.emotions());
-    return emotions?.map((emotion) => emotion.name) || [];
+    return emotions?.map((emotion) => ({
+      text: emotion.spanText,
+      emotion: emotion.name,
+    })) || [];
   },
 });
 
-// nimbleway participants
+pack.addFormula({
+  name: 'Sentiments',
+  description: 'Detect negative or positive sentiment in the text.',
+
+  parameters,
+
+  resultType: coda.ValueType.Array,
+  items: coda.makeObjectSchema({
+    name: 'Sentiment',
+    properties: {
+      text: { type: coda.ValueType.String },
+      sentiment: { type: coda.ValueType.String },
+    },
+  }),
+
+  async execute(params, context) {
+    const { sentiments } = await executePipeline(params, context, OneAI.skills.sentiments());
+    return sentiments?.map((sentiment) => ({
+      text: sentiment.spanText,
+      sentiment: sentiment.value as string,
+    })) || [];
+  },
+});
