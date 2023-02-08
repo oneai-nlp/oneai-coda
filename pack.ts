@@ -1,5 +1,6 @@
 import * as coda from '@codahq/packs-sdk';
 import * as OneAI from 'oneai';
+import moment from 'moment-timezone';
 import OneAICoda from './oneai-client';
 
 // eslint-disable-next-line import/prefer-default-export
@@ -266,8 +267,8 @@ pack.addFormula({
     ...parameters,
     coda.makeParameter({
       type: coda.ParameterType.Date,
-      name: 'base',
-      description: 'Base date to use for relative dates (e.g. "tomorrow").',
+      name: 'baseTime',
+      description: 'Base date & time to use for relative dates (e.g. "tomorrow").',
       optional: true,
     }),
   ],
@@ -280,10 +281,31 @@ pack.addFormula({
     const { numbers } = await executePipeline(
       [doc, text, url],
       context,
-      OneAI.skills.numbers(base ? { reference_time: base.toISOString() } : {}),
+      OneAI.skills.numbers(base && {
+        reference_time: moment.tz(base, context.timezone).toISOString(true).replace(/([+-]\d{2}):(\d{2})$/, ''),
+      }),
     );
     return numbers
-      ?.filter((number) => number.name in ['DATE', 'TIME'])
-      ?.map((datetime) => new Date(datetime.data.date_time).getTime() / 1000) || [];
+      ?.filter((number) => ['DATE', 'TIME'].includes(number.name))
+      ?.map((datetime) => moment.tz(datetime.data.date_time, context.timezone).valueOf() / 1000)
+      || [];
+  },
+});
+
+pack.addFormula({
+  name: 'Numbers',
+  description: 'Detect and parse numbers and quantities in the text.',
+
+  parameters,
+
+  resultType: coda.ValueType.Array,
+  items: { type: coda.ValueType.Number },
+
+  async execute(params, context) {
+    const { numbers } = await executePipeline(params, context, OneAI.skills.numbers());
+    return numbers
+      ?.filter((number) => ['NUMBER', 'QUANTITY', 'MONEY', 'ORDINAL'].includes(number.name))
+      ?.map((number) => number.data.numeric_value)
+      || [];
   },
 });

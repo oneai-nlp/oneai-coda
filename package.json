@@ -19,6 +19,7 @@
   "homepage": "https://github.com/oneai-nlp/oneai-coda#readme",
   "dependencies": {
     "@codahq/packs-sdk": "^1.2.2",
+    "moment-timezone": "^0.5.40",
     "oneai": "^0.7.9"
   },
   "devDependencies": {
